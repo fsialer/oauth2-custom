@@ -1,7 +1,9 @@
 package com.fernando.oauth2_custom.infrastructure.adapters.input.rest;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fernando.oauth2_custom.infrastructure.adapters.input.rest.models.responses.ErrorResponse;
 import feign.FeignException;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -20,7 +22,9 @@ import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 
 @Slf4j
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalControllerAdvice {
+
 
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -42,13 +46,21 @@ public class GlobalControllerAdvice {
 
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ExceptionHandler(FeignException.class)
-    public ErrorResponse handleFeignException(FeignException e){
+    public ErrorResponse handleFeignException(FeignException e) throws Exception{
         logException(FUNCTIONAL.name(), FEIGN_CLIENT_ERROR.getCode(), e.getMessage());
+        String code="";
+        String body=e.contentUTF8();
+        if(!body.isEmpty()){
+            log.info(body);
+            ObjectMapper mapper= new ObjectMapper();
+            ErrorResponse error = mapper.readValue(body, ErrorResponse.class);
+            code=error.code();
+        }
         return ErrorResponse.builder()
                 .code(FEIGN_CLIENT_ERROR.getCode())
                 .type(FUNCTIONAL)
                 .message(FEIGN_CLIENT_ERROR.getMessage())
-                .details(Collections.singletonList(e.getMessage()))
+                .details(Collections.singletonList(code))
                 .timestamp(LocalDateTime.now().toString())
                 .build();
     }
